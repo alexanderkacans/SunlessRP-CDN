@@ -34,12 +34,12 @@
     "delete_empty_folders": true,
 
     "chunking": {
-      "enabled": true,
+      "enabled": false,
       "max_chunk_size_mb": 50
     },
 
     "compression": {
-      "enabled": true,
+      "enabled": false,
       "method": "bz2"
     },
 
