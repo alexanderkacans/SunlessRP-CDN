@@ -18,15 +18,7 @@ CDN_ADDONS = CDN / "addons"
 SETTINGS = json.load(open("settings.json", "r"))
 
 # ASSET TARGETS FOR EXTRACTION
-ASSET_TARGETS = {
-    "materials": FASTDL / "materials",
-    "models": FASTDL / "models",
-    "sound": FASTDL / "sound",
-    "maps": FASTDL / "maps",
-    "particles": FASTDL / "particles",
-    "resource": FASTDL / "resource",
-    "fonts": FASTDL / "fonts"
-}
+ASSET_TYPES = ["materials", "models", "sound", "maps", "particles", "resource", "fonts"]
 
 def safe_copy(src, dst):
     dst.parent.mkdir(parents=True, exist_ok=True)
@@ -38,7 +30,7 @@ def safe_copy(src, dst):
 
 def extract_assets():
     print("===========================================")
-    print(" Extracting Assets From Addons → fastdl/")
+    print(" Recursive Asset Extraction → fastdl/")
     print("===========================================")
 
     if not ADDONS.exists():
@@ -49,23 +41,25 @@ def extract_assets():
         if not addon.is_dir():
             continue
 
-        print(f"\n[ADDON] Scanning: {addon.name}")
+        print(f"\n[ADDON] Scanning recursively: {addon.name}")
 
-        for asset_type, target_root in ASSET_TARGETS.items():
-            asset_folder = addon / asset_type
-            if not asset_folder.exists():
-                continue
+        # Walk every folder inside the addon
+        for path, dirs, files in os.walk(addon):
+            path = Path(path)
 
-            print(f"[FOUND] {asset_type} in {addon.name}")
+            # Check if this folder is one of the asset types
+            if path.name.lower() in ASSET_TYPES:
+                asset_type = path.name.lower()
+                print(f"[FOUND] {asset_type} in {addon.name} at {path}")
 
-            for path, dirs, files in os.walk(asset_folder):
+                # Copy all files inside this folder
                 for file in files:
-                    src = Path(path) / file
-                    rel = src.relative_to(asset_folder)
-                    dst = target_root / rel
+                    src = path / file
+                    rel = src.relative_to(path)
+                    dst = FASTDL / asset_type / rel
                     safe_copy(src, dst)
 
-    print("\n[EXTRACT] Asset Extraction Complete")
+    print("\n[EXTRACT] Recursive Asset Extraction Complete")
 
 def ensure_folders():
     FASTDL.mkdir(exist_ok=True)
