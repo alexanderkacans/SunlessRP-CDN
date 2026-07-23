@@ -1,0 +1,11 @@
+{
+  "title": "aa [SL] Anti Adware",
+  "type": "ServerContent",
+  "tags": [
+    "roleplay"
+  ],
+  "ignore": [
+    "data/*",
+    "*.jpg"
+  ]
+}
