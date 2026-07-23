@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import json
 import time
+import bz2
 from pathlib import Path
 
 # ------------------------------
@@ -17,7 +18,6 @@ G = SETTINGS["git"]
 C = SETTINGS["cdn"]
 F = SETTINGS["fastdl"]
 N = SETTINGS["normalization"]
-FD = SETTINGS["folders"]
 FIN = SETTINGS["finish"]
 
 # ------------------------------
@@ -53,7 +53,7 @@ def normalize_smart(root, mode):
                     data = f.read()
                 if mode == "LF":
                     fixed = data.replace(b"\r\n", b"\n")
-                else:
+                else:  # CRLF
                     fixed = data.replace(b"\n", b"\r\n")
                 if fixed != data:
                     with open(full, "wb") as f:
@@ -212,7 +212,7 @@ def delete_empty_folders():
     print(f"[EMPTY] Removed {removed} empty folders")
 
 # ------------------------------
-# FastDL Build
+# FastDL Build (RAW FILES)
 # ------------------------------
 
 def build_fastdl():
@@ -234,17 +234,59 @@ def build_fastdl():
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(os.path.join(path, file), target)
 
-    print("[FASTDL] Build complete")
+    print("[FASTDL] Raw FastDL build complete")
 
 # ------------------------------
-# Git Automation (Windows-safe)
+# BZ2 Compression → CDN ONLY
+# ------------------------------
+
+def compress_fastdl_to_bz2():
+    fastdl_root = Path(P["fastdl"])
+    cdn_fastdl_root = Path(P["cdn"]) / "fastdl"
+    cdn_fastdl_root.mkdir(parents=True, exist_ok=True)
+
+    print("[BZ2] Starting compression of FastDL assets")
+
+    for path, dirs, files in os.walk(fastdl_root):
+        for file in files:
+            full = Path(path) / file
+
+            if full.suffix == ".bz2":
+                continue
+
+            if full.suffix.lower() in [
+                ".mdl", ".vvd", ".vtx", ".phy",
+                ".vtf", ".vmt",
+                ".wav", ".mp3",
+                ".bsp",
+                ".png", ".jpg", ".jpeg",
+                ".dat", ".bin"
+            ]:
+                try:
+                    with open(full, "rb") as f:
+                        raw_data = f.read()
+
+                    compressed_data = bz2.compress(raw_data, compresslevel=9)
+
+                    rel = full.relative_to(fastdl_root)
+                    bz2_path = cdn_fastdl_root / (str(rel) + ".bz2")
+                    bz2_path.parent.mkdir(parents=True, exist_ok=True)
+
+                    with open(bz2_path, "wb") as f:
+                        f.write(compressed_data)
+
+                    print(f"[BZ2] Compressed → {bz2_path}")
+
+                except Exception as e:
+                    print(f"[BZ2] ERROR compressing {full}: {e}")
+
+    print("[BZ2] CDN now contains bz2-only FastDL")
+
+# ------------------------------
+# Git Automation
 # ------------------------------
 
 def auto_git():
-    if not G["auto_stage"] and not G["auto_commit"]:
-        print("[GIT] Skipped (disabled)")
-        return
-
     run("git add .")
     run("git commit -m \"Auto-update\"")
 
@@ -287,18 +329,22 @@ def main():
     ensure_folders()
     clean_cdn()
 
+    # Source → LF
     if N["apply_to_source"]:
         normalize_smart(P["source"], "LF")
+    # Raw FastDL → CRLF
     if N["apply_to_fastdl"]:
-        normalize_smart(P["fastdl"], "LF")
+        normalize_smart(P["fastdl"], "CRLF")
+    # CDN metadata → CRLF
     if N["apply_to_cdn"]:
         normalize_smart(P["cdn"], "CRLF")
 
     copy_addons()
+    build_fastdl()
+    compress_fastdl_to_bz2()
     generate_manifest()
     generate_version()
     delete_empty_folders()
-    build_fastdl()
     auto_git()
 
     if FIN["print_success_banner"]:

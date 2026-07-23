@@ -33,14 +33,10 @@
     "clean_before_build": true,
     "delete_empty_folders": true,
 
-    "chunking": {
-      "enabled": false,
-      "max_chunk_size_mb": 50
-    },
-
     "compression": {
-      "enabled": false,
-      "method": "bz2"
+      "enabled": true,
+      "method": "bz2",
+      "delete_raw_after": false
     },
 
     "manifest": {
@@ -64,7 +60,6 @@
   },
 
   "normalization": {
-    "lf_enforce": true,
     "apply_to_source": true,
     "apply_to_cdn": true,
     "apply_to_fastdl": true
