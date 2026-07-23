@@ -28,15 +28,14 @@ def write_gitignore_bz2_only():
 
 
 # ---------------------------------------------------------
-# Write .gitattributes (LFS rules)
+# Write .gitattributes (safe LFS rules)
 # ---------------------------------------------------------
 def write_gitattributes():
-    content = """
-*.bz2 filter=lfs diff=lfs merge=lfs -text
+    content = """*.bz2 filter=lfs diff=lfs -text
 """
     with open(".gitattributes", "w") as f:
         f.write(content)
-    print("[GITATTRIBUTES] Written")
+    print("[GITATTRIBUTES] Written (safe LFS rules)")
 
 
 def run(cmd):
@@ -126,7 +125,7 @@ def clean_cdn():
 
 
 # ---------------------------------------------------------
-# Copy addons
+# Copy addons (Lua only, to CDN)
 # ---------------------------------------------------------
 def copy_addons():
     src = Path(P["source_addons"])
@@ -137,39 +136,66 @@ def copy_addons():
         print("[ADDONS] No source addons")
         return
 
-    for item in src.iterdir():
-        target = dst / item.name
-        if item.is_dir():
-            shutil.copytree(item, target, dirs_exist_ok=True)
+    for addon in src.iterdir():
+        if not addon.is_dir():
+            continue
+
+        target_addon = dst / addon.name
+        target_addon.mkdir(parents=True, exist_ok=True)
+
+        lua_src = addon / "lua"
+        if lua_src.exists():
+            shutil.copytree(lua_src, target_addon / "lua", dirs_exist_ok=True)
+            print(f"[ADDONS] Copied Lua for addon → {addon.name}")
         else:
-            shutil.copy(item, target)
+            print(f"[ADDONS] No Lua folder for addon → {addon.name}")
 
-    print("[ADDONS] Copied")
+    print("[ADDONS] Lua-only copy complete")
 
 
 # ---------------------------------------------------------
-# Build raw FastDL (local only)
+# Build raw FastDL (assets only)
 # ---------------------------------------------------------
+VALID_FASTDL_ROOTS = [
+    "materials",
+    "models",
+    "sound",
+    "maps",
+    "particles",
+    "resource",
+    "fonts"
+]
+
+
 def build_fastdl():
     if not F["enabled"]:
         print("[FASTDL] Disabled")
         return
 
-    src = Path(P["source_garrysmod"])
-    dst = Path(P["fastdl"])
+    src_gm = Path(P["source_garrysmod"])
+    dst_fastdl = Path(P["fastdl"])
 
-    if not src.exists():
-        print("[FASTDL] Missing source")
+    if not src_gm.exists():
+        print("[FASTDL] Missing source/garrysmod")
         return
 
-    for path, dirs, files in os.walk(src):
-        for file in files:
-            rel = os.path.relpath(os.path.join(path, file), src)
-            target = dst / rel
-            target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy(os.path.join(path, file), target)
+    print("[FASTDL] Building assets-only FastDL")
 
-    print("[FASTDL] Built raw FastDL")
+    for root in VALID_FASTDL_ROOTS:
+        src_root = src_gm / root
+        if not src_root.exists():
+            continue
+
+        for path, dirs, files in os.walk(src_root):
+            for file in files:
+                full_src = Path(path) / file
+                rel = full_src.relative_to(src_gm)
+                target = dst_fastdl / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(full_src, target)
+                print(f"[FASTDL] {rel}")
+
+    print("[FASTDL] Assets-only FastDL built")
 
 
 # ---------------------------------------------------------
@@ -180,7 +206,7 @@ def compress_fastdl_to_bz2():
     cdn_fastdl_root = Path(P["cdn"]) / "fastdl"
     cdn_fastdl_root.mkdir(parents=True, exist_ok=True)
 
-    print("[BZ2] Compressing FastDL")
+    print("[BZ2] Compressing FastDL assets")
 
     for path, dirs, files in os.walk(fastdl_root):
         for file in files:
@@ -323,9 +349,16 @@ def delete_empty_folders():
 # Git automation
 # ---------------------------------------------------------
 def auto_git():
-    run("git add .")
-    run("git commit -m \"CDN Update\"")
-    run("git push")
+    if not (G["auto_stage"] or G["auto_commit"] or G["auto_push"]):
+        print("[GIT] Automation disabled")
+        return
+
+    if G["auto_stage"]:
+        run("git add .")
+    if G["auto_commit"]:
+        run("git commit -m \"CDN Update\"")
+    if G["auto_push"]:
+        run("git push")
 
 
 # ---------------------------------------------------------
@@ -349,9 +382,9 @@ def main():
     if N["apply_to_cdn"]:
         normalize_smart(P["cdn"], "CRLF")
 
-    copy_addons()
-    build_fastdl()
-    compress_fastdl_to_bz2()
+    copy_addons()              # Lua-only to CDN/addons
+    build_fastdl()             # assets-only FastDL
+    compress_fastdl_to_bz2()   # FastDL → CDN/fastdl/*.bz2
     chunk_large_bz2()
     generate_manifest()
     generate_version()
