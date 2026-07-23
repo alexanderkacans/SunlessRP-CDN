@@ -4,9 +4,46 @@ import subprocess
 import json
 import time
 from pathlib import Path
+
+def detect_binary(path):
+    try:
+        with open(path, "rb") as f:
+            chunk = f.read(4096)
+            return b"\x00" in chunk
+    except:
+        return True
+
+def normalize_smart(root, mode):
+    for path, dirs, files in os.walk(root):
+        if ".git" in path:
+            continue
+
+        for file in files:
+            full = os.path.join(path, file)
+
+            if detect_binary(full):
+                continue
+
+            try:
+                with open(full, "rb") as f:
+                    data = f.read()
+
+                if mode == "LF":
+                    fixed = data.replace(b"\r\n", b"\n")
+                else:
+                    fixed = data.replace(b"\n", b"\r\n")
+
+                if fixed != data:
+                    with open(full, "wb") as f:
+                        f.write(fixed)
+                    print(f"[SMART] Fixed {mode} → {full}")
+
+            except:
+                pass
 def run(cmd):
     print(f"[RUN] {cmd}")
     return subprocess.run(cmd, shell=True).returncode
+
 def write_gitattributes():
     content = """
 *.bsp filter=lfs diff=lfs merge=lfs -text
@@ -22,6 +59,7 @@ def write_gitattributes():
     with open(".gitattributes", "w") as f:
         f.write(content)
     print("[LFS] .gitattributes written")
+
 def auto_lfs_track():
     patterns = [
         "*.bsp", "*.mdl", "*.vtf", "*.vmt",
@@ -30,6 +68,7 @@ def auto_lfs_track():
     for p in patterns:
         run(f"git lfs track \"{p}\"")
     print("[LFS] Tracking patterns updated")
+
 def auto_lfs_stage():
     run("git add .gitattributes")
     run("git add -u")
@@ -46,6 +85,7 @@ def ensure_folders():
     ]
     for folder in required:
         Path(folder).mkdir(parents=True, exist_ok=True)
+
 def clean_cdn():
     cdn = Path("cdn")
     for item in cdn.iterdir():
@@ -56,19 +96,6 @@ def clean_cdn():
         else:
             item.unlink()
     print("[CLEAN] CDN cleaned")
-def normalize_lf(root):
-    for path, dirs, files in os.walk(root):
-        for file in files:
-            full = os.path.join(path, file)
-            try:
-                with open(full, "rb") as f:
-                    data = f.read()
-                data = data.replace(b"\r\n", b"\n")
-                with open(full, "wb") as f:
-                    f.write(data)
-            except:
-                pass
-    print(f"[LF] Normalized LF in {root}")
 def copy_addons():
     src = Path("source/garrysmod/addons")
     dst = Path("cdn/addons")
@@ -79,6 +106,7 @@ def copy_addons():
         else:
             shutil.copy(item, target)
     print("[COPY] Addons copied")
+
 def generate_manifest():
     manifest = {}
     for path, dirs, files in os.walk("cdn"):
@@ -89,11 +117,13 @@ def generate_manifest():
     with open("cdn/manifest.json", "w") as f:
         json.dump(manifest, f, indent=2)
     print("[MANIFEST] Generated")
+
 def generate_version():
     version = int(time.time())
     with open("cdn/version.txt", "w") as f:
         f.write(str(version))
     print(f"[VERSION] {version}")
+
 def delete_empty_folders(root="cdn"):
     removed = 0
     for path, dirs, files in os.walk(root, topdown=False):
@@ -135,7 +165,11 @@ def main():
 
     ensure_folders()
     clean_cdn()
-    normalize_lf("source")
+
+    normalize_smart("source", "LF")
+    normalize_smart("fastdl", "LF")
+    normalize_smart("cdn", "CRLF")
+
     copy_addons()
     generate_manifest()
     generate_version()
@@ -146,5 +180,6 @@ def main():
     print("===========================================")
     print(" SunlessRP CDN Build Complete — No Errors")
     print("===========================================")
+
 if __name__ == "__main__":
     main()

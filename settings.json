@@ -60,3 +60,29 @@
     "copy_materials": true,
     "copy_models": true,
     "copy_sounds": true,
+    "copy_maps": true
+  },
+
+  "normalization": {
+    "lf_enforce": true,
+    "apply_to_source": true,
+    "apply_to_cdn": true,
+    "apply_to_fastdl": true
+  },
+
+  "folders": {
+    "auto_create_source": true,
+    "auto_create_garrysmod": true,
+    "auto_create_addons": true,
+    "auto_create_lua_client": true,
+
+    "auto_create_cdn": true,
+    "auto_create_cdn_addons": true,
+
+    "auto_create_fastdl": true
+  },
+
+  "finish": {
+    "print_success_banner": true
+  }
+}
