@@ -1,0 +1,62 @@
+{
+  "paths": {
+    "source": "source",
+    "source_garrysmod": "source/garrysmod",
+    "source_addons": "source/garrysmod/addons",
+    "source_lua_client": "source/garrysmod/lua/autorun/client",
+
+    "cdn": "cdn",
+    "cdn_addons": "cdn/addons",
+
+    "fastdl": "fastdl"
+  },
+
+  "git": {
+    "branch": "main",
+
+    "auto_stage": true,
+    "auto_commit": true,
+
+    "auto_stash_before_pull": true,
+    "auto_rebase": true,
+    "auto_rebase_abort_on_conflict": true,
+    "auto_pop_stash": true,
+
+    "push_normal_first": true,
+    "push_force_if_needed": true,
+
+    "verbose_logs": true,
+    "preserve_git_folder_on_clean": true
+  },
+
+  "cdn": {
+    "clean_before_build": true,
+    "delete_empty_folders": true,
+
+    "chunking": {
+      "enabled": true,
+      "max_chunk_size_mb": 50
+    },
+
+    "compression": {
+      "enabled": true,
+      "method": "bz2"
+    },
+
+    "manifest": {
+      "enabled": true,
+      "file": "manifest.json"
+    },
+
+    "version": {
+      "enabled": true,
+      "file": "version.txt",
+      "mode": "timestamp"
+    }
+  },
+
+  "fastdl": {
+    "enabled": true,
+    "copy_materials": true,
+    "copy_models": true,
+    "copy_sounds": true,

@@ -1,0 +1,1 @@
+include( "bricks_server/bricks_server_svload.lua" )
